@@ -225,8 +225,3 @@ refusal accuracy (does it correctly decline unanswerable questions?).
 
 ---
 
-## 10. What's next
-
-See section 21 ("Future Features") of the project specification: streaming
-responses, multi-book search, reranking, hybrid search, OCR for scanned
-books, page-level PDF viewing, and authentication.
