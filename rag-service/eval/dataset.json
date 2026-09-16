@@ -1,0 +1,12 @@
+[
+  {
+    "question": "What is deadlock?",
+    "expected_pages": [42, 43],
+    "notes": "Replace this with real questions for the book you test against."
+  },
+  {
+    "question": "What color is the sky on Mars?",
+    "expected_pages": [],
+    "notes": "An intentionally unanswerable question, to test the refusal path."
+  }
+]
