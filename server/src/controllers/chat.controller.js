@@ -6,7 +6,7 @@ export async function askQuestion(req, res, next) {
   try {
     const { bookId, question, history } = req.body;
 
-    const book = bookStore.get(bookId);
+    const book = await bookStore.get(bookId);
     if (!book) return next(Errors.bookNotFound());
     if (book.status !== "ready") return next(Errors.bookNotReady());
 

@@ -63,6 +63,9 @@ INTERNAL_API_KEY=change-me-to-a-long-random-string   # must match rag-service
 MAX_UPLOAD_MB=50
 UPLOAD_DIR=../data/books
 CLIENT_ORIGIN=http://localhost:5173
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>/<database>
+MONGODB_DB_NAME=book_rag_assistant
+MONGODB_COLLECTION=books
 ```
 
 `client/.env` usually needs no changes for local development:
@@ -88,6 +91,8 @@ cp .env.example .env
 # then edit .env and set GROQ_API_KEY and INTERNAL_API_KEY
 ```
 
+The Compose server also loads `server/.env`, including its MongoDB settings.
+
 Then:
 
 ```bash
@@ -96,10 +101,10 @@ docker compose up --build
 
 This builds and starts all three services:
 
-| Service | URL |
-|---|---|
-| React frontend | http://localhost:5173 |
-| Node API | http://localhost:4000 |
+| Service            | URL                                             |
+| ------------------ | ----------------------------------------------- |
+| React frontend     | http://localhost:5173                           |
+| Node API           | http://localhost:4000                           |
 | Python RAG service | http://localhost:8000 (internal; docs at /docs) |
 
 First startup will take a few minutes — the RAG service downloads the
@@ -183,14 +188,14 @@ book-rag-assistant/
 
 ## 7. API reference (Node — what the frontend talks to)
 
-| Method | Path | Purpose |
-|---|---|---|
-| POST | `/api/books/upload` | multipart upload, field `file` (PDF), optional `title` |
-| GET | `/api/books` | list books and their status |
-| GET | `/api/books/:id/status` | poll ingestion progress |
-| DELETE | `/api/books/:id` | delete a book, its file, and its vectors |
-| POST | `/api/chat` | `{ bookId, question, history }` → `{ answer, sources, grounded, latency_ms }` |
-| GET | `/health` | Node + downstream RAG service health |
+| Method | Path                    | Purpose                                                                       |
+| ------ | ----------------------- | ----------------------------------------------------------------------------- |
+| POST   | `/api/books/upload`     | multipart upload, field `file` (PDF), optional `title`                        |
+| GET    | `/api/books`            | list books and their status                                                   |
+| GET    | `/api/books/:id/status` | poll ingestion progress                                                       |
+| DELETE | `/api/books/:id`        | delete a book, its file, and its vectors                                      |
+| POST   | `/api/chat`             | `{ bookId, question, history }` → `{ answer, sources, grounded, latency_ms }` |
+| GET    | `/health`               | Node + downstream RAG service health                                          |
 
 Every error response has the shape `{ "error": { "code": "...", "message": "..." } }`.
 
@@ -214,14 +219,14 @@ refusal accuracy (does it correctly decline unanswerable questions?).
 
 ## 9. Troubleshooting
 
-| Symptom | Likely cause |
-|---|---|
-| Upload fails immediately with `RAG_UNAVAILABLE` | Python service isn't running or `RAG_SERVICE_URL` is wrong |
-| Ingestion stuck at "queued" forever | Check the rag-service terminal/logs for a startup error (often a missing `GROQ_API_KEY` or model download failure) |
-| `401` errors between Node and Python | `INTERNAL_API_KEY` doesn't match between `server/.env` and `rag-service/.env` |
-| "No readable text was found" | The PDF is scanned images with no text layer — OCR isn't supported yet |
-| Answers ignore the book / seem generic | Check `MIN_SIMILARITY` isn't set too low, and confirm the book status is actually "Ready" before asking |
-| Slow first request | The embedding model loads lazily on first use — subsequent requests are fast |
+| Symptom                                         | Likely cause                                                                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Upload fails immediately with `RAG_UNAVAILABLE` | Python service isn't running or `RAG_SERVICE_URL` is wrong                                                         |
+| Ingestion stuck at "queued" forever             | Check the rag-service terminal/logs for a startup error (often a missing `GROQ_API_KEY` or model download failure) |
+| `401` errors between Node and Python            | `INTERNAL_API_KEY` doesn't match between `server/.env` and `rag-service/.env`                                      |
+| "No readable text was found"                    | The PDF is scanned images with no text layer — OCR isn't supported yet                                             |
+| Answers ignore the book / seem generic          | Check `MIN_SIMILARITY` isn't set too low, and confirm the book status is actually "Ready" before asking            |
+| Slow first request                              | The embedding model loads lazily on first use — subsequent requests are fast                                       |
 
 ---
 
