@@ -1,4 +1,6 @@
-"""Prompt templates for generation and query rewriting."""
+"""LangChain prompt templates for generation and query rewriting."""
+
+from langchain_core.prompts import ChatPromptTemplate
 
 SYSTEM_PROMPT = """You answer questions strictly using the provided excerpts from a book.
 Each excerpt is labeled with the page(s) it came from, like [Page 42].
@@ -12,6 +14,16 @@ REWRITE_SYSTEM_PROMPT = """Rewrite the user's latest message as a standalone que
 makes sense without the earlier conversation. Preserve its meaning and intent exactly.
 Do not answer the question. Output only the rewritten question, nothing else."""
 
+REWRITE_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", REWRITE_SYSTEM_PROMPT),
+    ("human", "Conversation so far:\n{history}\n\nLatest message: {question}"),
+])
+
+ANSWER_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", SYSTEM_PROMPT),
+    ("human", "--- Context ---\n{context}\n--- End Context ---\n\nQuestion: {question}"),
+])
+
 
 def build_context_block(sources: list[dict]) -> str:
     blocks = []
@@ -20,11 +32,3 @@ def build_context_block(sources: list[dict]) -> str:
             else f"[Pages {s['page_start']}-{s['page_end']}]"
         blocks.append(f"{label} {s['text']}")
     return "\n\n".join(blocks)
-
-
-def build_user_prompt(question: str, context_block: str) -> str:
-    return f"""--- Context ---
-{context_block}
---- End Context ---
-
-Question: {question}"""

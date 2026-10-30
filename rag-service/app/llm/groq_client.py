@@ -1,23 +1,58 @@
-"""Groq API client for query rewriting and answer generation.
+"""LangChain Groq chains for query rewriting and answer generation.
 
 Retries are limited to transient failures (rate limits, 5xx, timeouts) with
 exponential backoff — a bad prompt or an auth failure should surface
 immediately rather than retry three times pointlessly.
 """
-from groq import Groq, APIStatusError, APIConnectionError
+from groq import APIStatusError, APIConnectionError
+from langchain_core.output_parsers import StrOutputParser
+from langchain_groq import ChatGroq
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.config import settings
-from app.llm.prompts import SYSTEM_PROMPT, REWRITE_SYSTEM_PROMPT, build_user_prompt
+from app.llm.prompts import ANSWER_PROMPT, REWRITE_PROMPT
 
-_client: Groq | None = None
+_answer_model: ChatGroq | None = None
+_rewrite_model: ChatGroq | None = None
 
 
-def get_client() -> Groq:
-    global _client
-    if _client is None:
-        _client = Groq(api_key=settings.groq_api_key)
-    return _client
+def _get_model(model_name: str, temperature: float, max_tokens: int) -> ChatGroq:
+    return ChatGroq(
+        model=model_name,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        api_key=settings.groq_api_key,
+    )
+
+
+def get_answer_model() -> ChatGroq:
+    global _answer_model
+    if _answer_model is None:
+        _answer_model = _get_model(
+            settings.groq_model,
+            temperature=0.1,
+            max_tokens=800,
+        )
+    return _answer_model
+
+
+def get_rewrite_model() -> ChatGroq:
+    global _rewrite_model
+    if _rewrite_model is None:
+        _rewrite_model = _get_model(
+            settings.groq_rewrite_model,
+            temperature=0,
+            max_tokens=100,
+        )
+    return _rewrite_model
+
+
+def _rewrite_chain():
+    return REWRITE_PROMPT | get_rewrite_model() | StrOutputParser()
+
+
+def _answer_chain():
+    return ANSWER_PROMPT | get_answer_model() | StrOutputParser()
 
 
 def _is_transient(exc: BaseException) -> bool:
@@ -39,17 +74,10 @@ def rewrite_query(question: str, history: list[dict]) -> str:
         return question
 
     turns = "\n".join(f"{h['role']}: {h['content']}" for h in history[-4:])
-    client = get_client()
-    resp = client.chat.completions.create(
-        model=settings.groq_rewrite_model,
-        temperature=0,
-        max_tokens=100,
-        messages=[
-            {"role": "system", "content": REWRITE_SYSTEM_PROMPT},
-            {"role": "user", "content": f"Conversation so far:\n{turns}\n\nLatest message: {question}"},
-        ],
-    )
-    rewritten = resp.choices[0].message.content.strip()
+    rewritten = _rewrite_chain().invoke({
+        "history": turns,
+        "question": question,
+    }).strip()
     return rewritten or question
 
 
@@ -60,15 +88,7 @@ def rewrite_query(question: str, history: list[dict]) -> str:
     reraise=True,
 )
 def generate_answer(question: str, context_block: str) -> str:
-    client = get_client()
-    user_prompt = build_user_prompt(question, context_block)
-    resp = client.chat.completions.create(
-        model=settings.groq_model,
-        temperature=0.1,
-        max_tokens=800,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-    )
-    return resp.choices[0].message.content.strip()
+    return _answer_chain().invoke({
+        "question": question,
+        "context": context_block,
+    }).strip()
