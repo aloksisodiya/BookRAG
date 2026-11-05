@@ -1,5 +1,5 @@
 import { bookStore } from "../store/bookStore.js";
-import { queryBook } from "../services/ragClient.js";
+import { answerQuestion } from "../services/ragService.js";
 import { Errors } from "../utils/errors.js";
 
 export async function askQuestion(req, res, next) {
@@ -10,7 +10,7 @@ export async function askQuestion(req, res, next) {
     if (!book) return next(Errors.bookNotFound());
     if (book.status !== "ready") return next(Errors.bookNotReady());
 
-    const result = await queryBook(bookId, question, history);
+    const result = await answerQuestion(bookId, question, history);
     res.json(result);
   } catch (err) {
     next(err);

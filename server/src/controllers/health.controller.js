@@ -1,20 +1,20 @@
-import { ragHealth } from "../services/ragClient.js";
+import { pool } from "../store/postgres.js";
+import { config } from "../config.js";
 
 export async function health(req, res) {
-  let ragStatus = "unreachable";
-  let ragDetails = null;
+  let postgresStatus = "unreachable";
   try {
-    ragDetails = await ragHealth();
-    ragStatus = "ok";
+    await pool.query("SELECT 1");
+    postgresStatus = "ok";
   } catch {
-    ragStatus = "unreachable";
+    postgresStatus = "unreachable";
   }
 
   res.json({
     status: "ok",
     node: "ok",
-    ragService: ragStatus,
-    ragDetails,
+    postgres: postgresStatus,
+    embeddingModel: config.embeddingModel,
     timestamp: new Date().toISOString(),
   });
 }
